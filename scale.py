@@ -103,14 +103,25 @@ def measurements(iface):
         tr = event.get_abs(0)[0]
         br = event.get_abs(3)[0]
         bl = event.get_abs(1)[0]
+        #print('tl: {}, tr: {}, br: {}, bl: {}'.format(tl, tr, br, bl))
 
         yield (tl,tr,br,bl)
 
 def average_mesurements(ms, max_stddev=55):
+    global iteration
+
     last_measurements = RingBuffer(800)
 
     while True:
         weight = sum(ms.next())
+        print('averaging iteration', iteration)
+        print('weight:', weight)
+
+        if weight < 1000:
+            print('skipping...')
+            continue
+        else:
+            iteration += 1
 
         last_measurements.append(weight)
 
@@ -121,7 +132,8 @@ def average_mesurements(ms, max_stddev=55):
             yield numpy.array((mean, stddev))
 
 def main():
-
+    global iteration
+    
     if len(sys.argv) == 2:
         device = sys.argv[1]
     else:
@@ -130,14 +142,17 @@ def main():
     iface = xwiimote.iface(device)
     iface.open(xwiimote.IFACE_BALANCE_BOARD)
 
+    iteration = 0
+    
     try:
 #        for m in measurements(iface):
 #            print_bboard_measurements(*m)
 
         for kg, err in average_mesurements(measurements(iface)):
+            print('iteration', iteration)
             pkg = "qme.seri.wiiweight.weight"
             perr = "qme.seri.wiiweight.err"
-
+            
             print("{:.2f} +/- {:.2f}".format(kg/100.0, err/100.0))
 
             kg, err = (int(round(x, 0)) for x in (kg, err))
@@ -150,7 +165,7 @@ def main():
 
 
     except KeyboardInterrupt:
-        print("Bye!")
+        print("\nBye!")
 
 if __name__ == '__main__':
     main()
